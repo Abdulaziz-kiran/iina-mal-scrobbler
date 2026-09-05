@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+
+# macOS
+.DS_Store
+
+# State and local runtime files
+*.sqlite3
+*.log
+tokens.json
+.env
