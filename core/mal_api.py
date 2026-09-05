@@ -11,7 +11,7 @@ import urllib.request
 from typing import Any, Callable, Optional
 
 from core.config import API_BASE_URL
-from core.logging import get_logger
+from core.logger import get_logger
 from core.models import AnimeMatch
 
 logger = get_logger()

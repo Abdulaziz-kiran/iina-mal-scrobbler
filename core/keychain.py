@@ -6,7 +6,7 @@ import subprocess
 from typing import Optional
 
 from core.config import KEYCHAIN_ACCOUNT_ACCESS, KEYCHAIN_ACCOUNT_REFRESH, KEYCHAIN_SERVICE
-from core.logging import get_logger
+from core.logger import get_logger
 
 logger = get_logger()
 

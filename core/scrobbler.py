@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from core.logging import get_logger
+from core.logger import get_logger
 from core.mal_api import (
     MALAPIError,
     MALAuthError,

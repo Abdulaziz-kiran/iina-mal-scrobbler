@@ -28,7 +28,7 @@ from core.config import (
     get_client_id,
 )
 from core.keychain import clear_all_tokens, get_token, set_token
-from core.logging import get_logger
+from core.logger import get_logger
 
 logger = get_logger()
 

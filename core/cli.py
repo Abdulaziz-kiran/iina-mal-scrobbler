@@ -22,7 +22,7 @@ from core.config import (
     set_client_id,
 )
 from core.keychain import get_token
-from core.logging import get_logger, setup_logging
+from core.logger import get_logger, setup_logging
 from core.mal_api import MALAPIError, MALClient
 from core.models import ScrobbleResult, ScrobbleStatus
 from core.parser import parse_filename

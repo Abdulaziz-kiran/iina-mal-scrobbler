@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from core.config import DATABASE_PATH, ensure_directories
-from core.logging import get_logger
+from core.logger import get_logger
 
 logger = get_logger()
 

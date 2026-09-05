@@ -1,6 +1,6 @@
 """Tests for logging and secret redaction."""
 
-from core.logging import redact_secrets
+from core.logger import redact_secrets
 
 
 def test_redact_secrets() -> None:
