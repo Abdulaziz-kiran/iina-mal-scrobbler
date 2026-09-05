@@ -1,0 +1,16 @@
+[project]
+name = "iina-mal-scrobbler"
+version = "0.1.0"
+description = "Automatic MyAnimeList scrobbler for IINA and mpv on macOS"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
