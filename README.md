@@ -5,21 +5,28 @@
 [![Platform: macOS](https://img.shields.io/badge/Platform-macOS-lightgrey.svg)](https://apple.com/macos)
 [![Python: 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 
-An ultra-lightweight, zero-daemon, open-source MyAnimeList (MAL) scrobbler for **IINA** and **mpv** on macOS.
+An experimental, lightweight, daemon-free MyAnimeList (MAL) scrobbler prototype for **IINA** and **mpv** on macOS.
+
+---
+
+> [!NOTE]
+> **Project Status & Development Note:**  
+> This is an **experimental / beta personal project** developed with **substantial AI assistance**.  
+> Comprehensive automated unit tests and mock integration harnesses exist and pass in CI/local test environments, but the author has **not yet completed extensive real-world field validation** during day-to-day media playback. It is shared openly as an experimental reference prototype rather than a battle-tested production utility.
 
 ---
 
 ## Highlights
 
-- **Zero Background Daemon:** No 24/7 background agents, menu-bar apps, or launchd processes. It runs only when IINA/mpv opens a video and terminates when playback ends.
-- **Zero External Runtime Dependencies:** Powered entirely by standard macOS tools (`urllib`, `sqlite3`, `security` Keychain, `re`).
-- **Asynchronous & Non-Blocking:** Video playback never freezes during network requests or authentication checks.
-- **Deterministic Filename Parser:** Robust layered parsing for standard fansub releases (`[SubsPlease]`, `[Erai-raws]`, SxxExx, absolute numbering). Never invents episode numbers.
-- **Ambiguity Guard:** Prevents accidentally updating the wrong anime when multiple titles are close matches.
-- **Monotonic Progress Protection:** Never downgrades watched progress if an older episode is replayed.
-- **macOS Keychain Security:** Access and refresh tokens are securely stored in the macOS Keychain—never in plaintext files.
-- **Offline Resilient:** Network failures are automatically queued in SQLite and retried opportunistically.
-- **Built-in Diagnostic Tool:** Run `mal-scrobbler doctor` anytime to verify your system setup.
+- **Zero Background Daemon:** No 24/7 background agents, menu-bar apps, or launchd processes. Designed to run only when IINA/mpv opens a video and terminate when playback ends.
+- **Zero External Runtime Dependencies:** Implemented using standard macOS and Python libraries (`urllib`, `sqlite3`, `security` Keychain, `re`).
+- **Asynchronous & Non-Blocking Design:** Player playback is not blocked during network requests or authentication checks.
+- **Deterministic Filename Parser (Automated Tests Passing):** Layered parsing logic for common fansub conventions (`[SubsPlease]`, `[Erai-raws]`, SxxExx, absolute numbering).
+- **Ambiguity Guard:** Designed to detect and handle ambiguous anime title matches.
+- **Progress Protection:** Enforces monotonic progression checks so replaying older episodes does not decrement watch count.
+- **macOS Keychain Storage:** Access and refresh tokens are stored in the macOS Keychain rather than plaintext configuration files.
+- **Offline Resilient Queue:** Network failures are queued locally in SQLite for retry.
+- **Built-in Diagnostic CLI:** Run `mal-scrobbler doctor` to inspect system environment and configurations.
 
 ---
 
@@ -109,7 +116,7 @@ Tokens are automatically saved into your encrypted macOS Keychain.
 
 Just watch your anime!
 
-When you reach **80%** of an episode in IINA or mpv, an On-Screen Display (OSD) notification will appear in the player:
+When you reach **80%** of an episode in IINA or mpv, the Lua script is designed to trigger an On-Screen Display (OSD) notification:
 
 - `✓ MAL: Sousou no Frieren (Ep. 5) updated!`
 - `✓ MAL: Sousou no Frieren (Ep. 5 already synced)`
