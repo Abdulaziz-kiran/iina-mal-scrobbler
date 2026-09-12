@@ -87,3 +87,19 @@ def test_refresh_tokens_flow():
         new_token = refresh_tokens(client_id="my_id")
         assert new_token == "refreshed_access_token"
         assert mock_set_token.call_count == 2
+
+
+def test_refresh_tokens_double_checked_locking():
+    """If another concurrent process refreshed the token while we waited for the lock, skip HTTP call."""
+    with patch("core.auth.get_token") as mock_get_token, \
+         patch("urllib.request.urlopen") as mock_urlopen:
+
+        # Return a freshly updated token from Keychain
+        mock_get_token.return_value = "newly_refreshed_access_token"
+
+        result = refresh_tokens(client_id="my_id", failed_token="stale_access_token")
+
+        assert result == "newly_refreshed_access_token"
+        # Must not call MAL API if token has already been refreshed
+        mock_urlopen.assert_not_called()
+

@@ -77,13 +77,14 @@ def test_update_watch_status_success():
         result = client.update_watch_status(52991, 6, status="watching")
         assert result["num_episodes_watched"] == 6
 
-        # Verify PATCH request details
+        # Verify PUT request details
         call_args = mock_urlopen.call_args[0]
         req = call_args[0]
-        assert req.method == "PATCH"
+        assert req.method == "PUT"
         assert "52991/my_list_status" in req.full_url
         assert req.data == b"num_watched_episodes=6&status=watching"
         assert req.headers["Authorization"] == "Bearer fake_token"
+        assert req.get_header("Content-type") == "application/x-www-form-urlencoded"
 
 
 def test_token_refresh_on_401():

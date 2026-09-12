@@ -98,11 +98,13 @@ def exchange_code_for_tokens(
         raise RuntimeError(f"Token exchange failed (HTTP {err.code}): {err_msg}")
 
 
-def refresh_tokens(client_id: Optional[str] = None) -> Optional[str]:
+def refresh_tokens(client_id: Optional[str] = None, failed_token: Optional[str] = None) -> Optional[str]:
     """
     Refresh access token using refresh token, protected against process race conditions.
 
     Uses fcntl.flock to serialize concurrent refresh attempts across IINA/Python processes.
+    If another process refreshed the token while this process was waiting for the lock,
+    the newly refreshed access token from Keychain is returned immediately.
     """
     ensure_directories()
     cid = client_id or get_client_id()
@@ -114,8 +116,15 @@ def refresh_tokens(client_id: Optional[str] = None) -> Optional[str]:
         # Acquire exclusive non-blocking or blocking lock
         fcntl.flock(lock_f.fileno(), fcntl.LOCK_EX)
         try:
-            # Check if another process already refreshed the token recently
             current_access = get_token(KEYCHAIN_ACCOUNT_ACCESS)
+
+            # Double-checked locking:
+            # If another process refreshed the token while we waited for the lock,
+            # current_access in Keychain will differ from the failed_token.
+            if failed_token and current_access and current_access != failed_token:
+                logger.info("Access token was already refreshed by another concurrent process.")
+                return current_access
+
             refresh_token = get_token(KEYCHAIN_ACCOUNT_REFRESH)
             if not refresh_token:
                 logger.warning("No refresh token found in Keychain.")

@@ -31,6 +31,7 @@ local DEFAULT_CLI_PATHS = {
 local current_file_path = nil
 local is_scrobbled = false
 local is_processing = false
+local has_attempted = false
 
 -- Resolve executable CLI path
 local function get_cli_path()
@@ -76,10 +77,11 @@ end
 
 -- Trigger asynchronous scrobble subprocess
 local function trigger_scrobble(path)
-    if is_scrobbled or is_processing then
+    if has_attempted or is_scrobbled or is_processing then
         return
     end
 
+    has_attempted = true
     is_processing = true
     local cli_cmd = get_cli_path()
 
@@ -100,6 +102,12 @@ local function trigger_scrobble(path)
         capture_stderr = true,
         playback_only = false
     }, function(success, result, error_msg)
+        -- Stale-callback guard: verify callback belongs to the currently loaded file
+        if path ~= current_file_path then
+            msg.info("Ignored stale scrobble callback for previous file: " .. tostring(path))
+            return
+        end
+
         is_processing = false
 
         if not success or not result then
@@ -147,7 +155,7 @@ end
 
 -- Playback position observer
 local function on_percent_pos_change(name, percent)
-    if not percent or is_scrobbled or is_processing then
+    if not percent or has_attempted or is_scrobbled or is_processing then
         return
     end
 
@@ -166,11 +174,13 @@ local function on_file_loaded()
         current_file_path = path
         is_scrobbled = false
         is_processing = false
+        has_attempted = false
         msg.info("Loaded video file: " .. path)
     else
         current_file_path = nil
         is_scrobbled = true -- Prevent processing on unsupported streams
         is_processing = false
+        has_attempted = true
     end
 end
 

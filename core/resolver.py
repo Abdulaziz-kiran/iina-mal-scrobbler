@@ -72,18 +72,31 @@ def score_candidate(parsed: ParsedAnime, candidate: AnimeMatch) -> float:
 
     for candidate_str in all_titles:
         sim = calculate_similarity(parsed.title, candidate_str)
+        # Also evaluate similarity without season text in candidate if candidate has season
+        cand_no_season = re.sub(
+            r"\b(?:season\s*\d+|\d+(?:st|nd|rd|th)\s*season|s\d+)\b",
+            "",
+            candidate_str,
+            flags=re.IGNORECASE,
+        )
+        cand_no_season = re.sub(r"\s+", " ", cand_no_season).strip()
+        if cand_no_season:
+            sim_no_season = calculate_similarity(parsed.title, cand_no_season)
+            sim = max(sim, sim_no_season)
+
         if sim > best_similarity:
             best_similarity = sim
 
-    # Season check
-    # If candidate title explicitly mentions a season, verify consistency
-    cand_norm = normalize_title(candidate.title)
-    cand_season_match = re.search(r"\b(?:season\s*(\d+)|(\d+)(?:st|nd|rd|th)\s*season|s(\d+))\b", cand_norm)
+    # Season check across primary title and all synonyms
     candidate_season: Optional[int] = None
-    if cand_season_match:
-        s_val = cand_season_match.group(1) or cand_season_match.group(2) or cand_season_match.group(3)
-        if s_val and s_val.isdigit():
-            candidate_season = int(s_val)
+    for cand_text in all_titles:
+        c_norm = normalize_title(cand_text)
+        cand_season_match = re.search(r"\b(?:season\s*(\d+)|(\d+)(?:st|nd|rd|th)\s*season|s(\d+))\b", c_norm)
+        if cand_season_match:
+            s_val = cand_season_match.group(1) or cand_season_match.group(2) or cand_season_match.group(3)
+            if s_val and s_val.isdigit():
+                candidate_season = int(s_val)
+                break
 
     if parsed.season is not None:
         if candidate_season is not None:
@@ -101,7 +114,13 @@ def score_candidate(parsed: ParsedAnime, candidate: AnimeMatch) -> float:
         if candidate_season is not None and candidate_season > 1:
             best_similarity = max(0.0, best_similarity - 0.20)
 
-    # Episode bounds check: if candidate total episodes is known and episode exceeds it significantly
+    # Episode bounds and media_type check:
+    # 1. Movie guard: If watching episode > 1, a 1-episode movie cannot be the target
+    if parsed.episode is not None and parsed.episode > 1:
+        if candidate.media_type == "movie" or candidate.num_episodes == 1:
+            best_similarity = max(0.0, best_similarity - 0.40)
+
+    # 2. Episode bounds check for series
     if candidate.num_episodes > 0 and parsed.episode is not None:
         if parsed.episode > candidate.num_episodes + 5:
             # Probably an absolute numbering targeting a sequel

@@ -107,3 +107,75 @@ def test_negative_rejection_cases(filename, description):
     res = parse_filename(filename)
     assert res.episode is None, f"Should reject episode for {description} ('{filename}'), but got {res.episode}"
     assert res.confidence == 0.0 or len(res.warnings) > 0
+
+
+# --- Regression Tests for v3 Fix Validation ---
+
+@pytest.mark.parametrize(
+    "filename,expected_title",
+    [
+        ("[Group] Mob Psycho 100 [1080p].mkv", "Mob Psycho 100"),
+        ("[Group] Eyeshield 21 [1080p].mkv", "Eyeshield 21"),
+        ("[Group] 86 [1080p].mkv", "86"),
+    ],
+)
+def test_parser_title_numbers_rejection(filename, expected_title):
+    """Anime titles containing numbers without explicit episode prefix must not extract an episode."""
+    res = parse_filename(filename)
+    assert res.episode is None, f"Expected no episode extracted for '{filename}', got {res.episode}"
+    assert expected_title.lower() in res.title.lower() or res.title == ""
+
+
+@pytest.mark.parametrize(
+    "filename,expected_title,expected_ep,expected_season",
+    [
+        ("[Group] 86 - 01 [1080p].mkv", "86", 1, None),
+        ("[SubsPlease] Mob Psycho 100 - 05.mkv", "Mob Psycho 100", 5, None),
+        ("[Group] Attack on Titan S04E05 [1080p].mkv", "Attack on Titan", 5, 4),
+        ("[Group] Attack on Titan - 05 [1080p].mkv", "Attack on Titan", 5, None),
+        ("[Group] One Piece - 1112 [1080p].mkv", "One Piece", 1112, None),
+        ("One.Piece.1112.1080p.WEB-DL.mkv", "One Piece", 1112, None),
+        ("One_Piece_1112_1080p.mkv", "One Piece", 1112, None),
+    ],
+)
+def test_parser_title_with_number_and_explicit_episode(filename, expected_title, expected_ep, expected_season):
+    """Titles with numbers that also have clear episode markers must parse correctly."""
+    res = parse_filename(filename)
+    assert res.episode == expected_ep, f"Failed episode for '{filename}': got {res.episode}, expected {expected_ep}"
+    assert expected_title.lower() in res.title.lower(), f"Failed title for '{filename}': got '{res.title}', expected '{expected_title}'"
+    if expected_season is not None:
+        assert res.season == expected_season
+
+
+@pytest.mark.parametrize(
+    "filename,expected_title,expected_ep",
+    [
+        ("[SubsPlease] Sousou no Frieren 05 [1080p].mkv", "Sousou no Frieren", 5),
+        ("[Group] Sousou no Frieren - 05 [1080p].mkv", "Sousou no Frieren", 5),
+    ],
+)
+def test_parser_fansub_leading_zero(filename, expected_title, expected_ep):
+    """Space-delimited fansub filenames with leading zeroes must be recognized as valid episodes."""
+    res = parse_filename(filename)
+    assert res.episode == expected_ep, f"Failed episode for '{filename}': got {res.episode}, expected {expected_ep}"
+    assert expected_title.lower() in res.title.lower()
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        ("[Group] Sousou no Frieren - 01-02 [1080p].mkv"),
+        ("[Group] Sousou no Frieren - 01~02 [1080p].mkv"),
+    ],
+)
+def test_parser_multi_episode_rejection(filename):
+    """Multi-episode ranges must be rejected cleanly with episode=None in v1."""
+    res = parse_filename(filename)
+    assert res.episode is None, f"Multi-episode file '{filename}' should not produce episode, got {res.episode}"
+
+
+def test_parser_decimal_episode_rejection():
+    """Fractional/decimal episodes like 01.5 must be rejected cleanly with episode=None in v1."""
+    res = parse_filename("[Group] Sousou no Frieren - 01.5 [1080p].mkv")
+    assert res.episode is None, f"Decimal episode file should not produce episode, got {res.episode}"
+

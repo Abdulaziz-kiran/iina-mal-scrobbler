@@ -107,7 +107,11 @@ class MALClient:
             if status_code == 401:
                 if not refreshed_auth and self.token_refresher:
                     logger.info("Access token expired (401). Attempting automatic refresh...")
-                    new_token = self.token_refresher()
+                    new_token = None
+                    try:
+                        new_token = self.token_refresher(failed_token=token)
+                    except TypeError:
+                        new_token = self.token_refresher()
                     if new_token:
                         return self._execute_request(
                             url=url,
@@ -260,7 +264,9 @@ class MALClient:
         """
         Update anime list status for a user.
 
-        Method: PATCH /v2/anime/{anime_id}/my_list_status
+        Method: PUT /v2/anime/{anime_id}/my_list_status
+        Per official MAL API v2 specification, PUT is the primary method for updating
+        user anime list status with application/x-www-form-urlencoded body.
         """
         payload: dict[str, Any] = {
             "num_watched_episodes": num_episodes_watched,
@@ -269,4 +275,4 @@ class MALClient:
             payload["status"] = status
 
         url = f"{self.base_url}/anime/{anime_id}/my_list_status"
-        return self._execute_request(url, method="PATCH", data=payload)
+        return self._execute_request(url, method="PUT", data=payload)

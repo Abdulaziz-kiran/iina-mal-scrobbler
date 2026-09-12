@@ -1,6 +1,6 @@
 # iina-mal-scrobbler
 
-[![CI](https://github.com/abdulaziz/iina-mal-scrobbler/actions/workflows/ci.yml/badge.svg)](https://github.com/abdulaziz/iina-mal-scrobbler/actions)
+[![CI](https://github.com/Abdulaziz-kiran/iina-mal-scrobbler/actions/workflows/ci.yml/badge.svg)](https://github.com/Abdulaziz-kiran/iina-mal-scrobbler/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: macOS](https://img.shields.io/badge/Platform-macOS-lightgrey.svg)](https://apple.com/macos)
 [![Python: 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
@@ -35,7 +35,7 @@ mal-scrobbler CLI
     ├── 2. Title Cache & Idempotency Check (SQLite)
     ├── 3. MAL Search & Ambiguity Resolver
     ├── 4. Token Refresh & Keychain Integration (OAuth 2.0 PKCE)
-    └── 5. Update Status (PATCH /v2/anime/{id}/my_list_status)
+    └── 5. Update Status (PUT /v2/anime/{id}/my_list_status)
     ↓ (JSON result)
 Lua OSD Notification (e.g. "✓ MAL: Frieren (Ep. 5) updated!")
 ```
@@ -49,7 +49,7 @@ Lua OSD Notification (e.g. "✓ MAL: Frieren (Ep. 5) updated!")
 Open your terminal and run:
 
 ```bash
-git clone https://github.com/abdulaziz/iina-mal-scrobbler.git
+git clone https://github.com/Abdulaziz-kiran/iina-mal-scrobbler.git
 cd iina-mal-scrobbler
 ./install.sh
 ```

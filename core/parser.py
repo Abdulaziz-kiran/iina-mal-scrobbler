@@ -75,11 +75,18 @@ _EP_PREFIX_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Delimited standalone number (e.g. One.Piece.1112.1080p)
-_DELIMITED_NUMBER_PATTERN = re.compile(
-    r"[\._\s](\d{1,4})(?:v\d+)?[\._\s]",
+# Delimited standalone number for dot/underscore-separated scene style (e.g. One.Piece.1112.1080p, One_Piece_1112_1080p)
+_SCENE_DELIMITED_PATTERN = re.compile(
+    r"[\._](\d{1,4})(?:v\d+)?[\._]",
     re.IGNORECASE,
 )
+
+# Standalone space-delimited fansub episode number with leading zero (e.g. " 05 ", " 005 ")
+_FANSUB_SPACE_PATTERN = re.compile(
+    r"(?<=\s)(0\d{1,3})(?:v\d+)?(?=\s*(?:\[|\(|$))",
+    re.IGNORECASE,
+)
+
 
 
 def _clean_separators(text: str) -> str:
@@ -155,60 +162,95 @@ def parse_filename(filename_or_path: str) -> ParsedAnime:
     numbering_type = NumberingType.UNKNOWN
     episode_match_span: Optional[Tuple[int, int]] = None
 
-    # Priority A: SxxExx
-    sxx_match = _SXXEXX_PATTERN.search(working)
-    if sxx_match:
-        detected_season = int(sxx_match.group(1))
-        detected_episode = int(sxx_match.group(2))
-        numbering_type = NumberingType.SEASON_EPISODE
-        episode_match_span = sxx_match.span()
-    else:
-        # Priority B: Standard " - 05" dash pattern
-        dash_matches = list(_DASH_EPISODE_PATTERN.finditer(working))
-        if dash_matches:
-            chosen_match = dash_matches[-1]
-            detected_episode = int(chosen_match.group(1))
-            episode_match_span = chosen_match.span()
-            if detected_episode >= 100:
-                numbering_type = NumberingType.ABSOLUTE
-            else:
-                numbering_type = NumberingType.EPISODE
+    # Guard against multi-episode ranges and decimal episodes in v1
+    # E.g. " - 01-02", " - 01~02", " - 01.5", "E01-E02"
+    multi_pattern = re.compile(
+        r"(?:"
+        r"(?:\s+-\s+|\s*-\s*)(?:#\s*|EP?\s*)?(\d{1,4})\s*[-~]\s*(?:(?:EPISODE|EP|E)[\s._-]*)?(\d{1,4})"
+        r"|\b(?:EPISODE|EP|E)(\d{1,4})\s*[-~]\s*(?:(?:EPISODE|EP|E)[\s._-]*)?(\d{1,4})"
+        r"|(?<=\s)(0\d{1,3})\s*[-~]\s*(0\d{1,3})"
+        r")(?=\s*(?:\[|\(|$|\.))",
+        re.IGNORECASE,
+    )
+    decimal_pattern = re.compile(
+        r"(?:"
+        r"(?:\s+-\s+|\s*-\s*)(?:#\s*|EP?\s*)?(\d{1,4}\.\d+)"
+        r"|\b(?:EPISODE|EP|E)(\d{1,4}\.\d+)"
+        r"|(?<=\s)(0\d{1,3}\.\d+)"
+        r")(?=\s*(?:\[|\(|$|\.))",
+        re.IGNORECASE,
+    )
+
+    is_multi_range = bool(multi_pattern.search(working))
+    is_decimal_ep = bool(decimal_pattern.search(working))
+
+
+    if is_multi_range:
+        warnings.append("Multi-episode ranges are not supported in v1")
+    if is_decimal_ep:
+        warnings.append("Decimal / fractional episodes are not supported in v1")
+
+    if not is_multi_range and not is_decimal_ep:
+        # Priority A: SxxExx
+        sxx_match = _SXXEXX_PATTERN.search(working)
+        if sxx_match:
+            detected_season = int(sxx_match.group(1))
+            detected_episode = int(sxx_match.group(2))
+            numbering_type = NumberingType.SEASON_EPISODE
+            episode_match_span = sxx_match.span()
         else:
-            # Priority C: Ep / Episode prefix
-            ep_match = _EP_PREFIX_PATTERN.search(working)
-            if ep_match:
-                detected_episode = int(ep_match.group(1))
-                numbering_type = NumberingType.EPISODE
-                episode_match_span = ep_match.span()
+            # Priority B: Standard " - 05" dash pattern
+            dash_matches = list(_DASH_EPISODE_PATTERN.finditer(working))
+            if dash_matches:
+                chosen_match = dash_matches[-1]
+                detected_episode = int(chosen_match.group(1))
+                episode_match_span = chosen_match.span()
+                if detected_episode >= 100:
+                    numbering_type = NumberingType.ABSOLUTE
+                else:
+                    numbering_type = NumberingType.EPISODE
             else:
-                # Priority D: Delimited number in dot-style filenames: One.Piece.1112.1080p
-                temp_work = working
-                for tag_pattern in _STANDALONE_TAGS:
-                    temp_work = tag_pattern.sub(" ", temp_work)
+                # Priority C: Ep / Episode prefix
+                ep_match = _EP_PREFIX_PATTERN.search(working)
+                if ep_match:
+                    detected_episode = int(ep_match.group(1))
+                    numbering_type = NumberingType.EPISODE
+                    episode_match_span = ep_match.span()
+                else:
+                    # Priority D: Delimited number in dot-style filenames: One.Piece.1112.1080p
+                    temp_work = working
+                    for tag_pattern in _STANDALONE_TAGS:
+                        temp_work = tag_pattern.sub(" ", temp_work)
 
-                candidate_nums = []
-                for num_match in _DELIMITED_NUMBER_PATTERN.finditer(temp_work):
-                    n_val = int(num_match.group(1))
-                    # Ignore common year ranges unless plausible absolute episode
-                    if 1970 <= n_val <= 2035:
-                        continue
-                    # Ignore common resolution numbers
-                    if n_val in (480, 576, 720, 1080, 1440, 2160):
-                        continue
-                    candidate_nums.append((n_val, num_match.span()))
+                    candidate_nums = []
+                    # Check dot/underscore delimited numbers (Scene release)
+                    for num_match in _SCENE_DELIMITED_PATTERN.finditer(temp_work):
+                        n_val = int(num_match.group(1))
+                        if 1970 <= n_val <= 2035 or n_val in (480, 576, 720, 1080, 1440, 2160):
+                            continue
+                        candidate_nums.append((n_val, num_match.span()))
 
-                if len(candidate_nums) == 1:
-                    detected_episode = candidate_nums[0][0]
-                    episode_match_span = candidate_nums[0][1]
-                    numbering_type = (
-                        NumberingType.ABSOLUTE
-                        if detected_episode >= 100
-                        else NumberingType.EPISODE
-                    )
-                elif len(candidate_nums) > 1:
-                    warnings.append(
-                        f"Multiple ambiguous candidate episode numbers found: {[c[0] for c in candidate_nums]}"
-                    )
+                    # Priority D2: Standalone fansub space-delimited number with leading zero (e.g. Sousou no Frieren 05)
+                    if not candidate_nums:
+                        for num_match in _FANSUB_SPACE_PATTERN.finditer(temp_work):
+                            n_val = int(num_match.group(1))
+                            if 1970 <= n_val <= 2035 or n_val in (480, 576, 720, 1080, 1440, 2160):
+                                continue
+                            candidate_nums.append((n_val, num_match.span()))
+
+                    if len(candidate_nums) == 1:
+                        detected_episode = candidate_nums[0][0]
+                        episode_match_span = candidate_nums[0][1]
+                        numbering_type = (
+                            NumberingType.ABSOLUTE
+                            if detected_episode >= 100
+                            else NumberingType.EPISODE
+                        )
+                    elif len(candidate_nums) > 1:
+                        warnings.append(
+                            f"Multiple ambiguous candidate episode numbers found: {[c[0] for c in candidate_nums]}"
+                        )
+
 
     # 8. Extract Title based on episode match position
     title_part = ""
